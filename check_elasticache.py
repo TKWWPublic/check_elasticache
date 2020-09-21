@@ -177,14 +177,110 @@ def main():
             'memory': 0.213,
             'redis_maxmemory': 142606336,
             'vcpu': 1},
+        'cache.t3.micro': {
+            'memory': 0.5,
+            'redis_maxmemory': 536870912,
+            'vcpu': 2},
+        'cache.t3.small': {
+            'memory': 1.27,
+            'redis_maxmemory': 1471026299,
+            'vcpu': 2},
         'cache.t3.medium': {
             'memory': 3.09,
             'redis_maxmemory': 3317862236,
             'vcpu': 2},
+        'cache.m4.large': {
+            'memory': 6.42,
+            'redis_maxmemory': 6892593152,
+            'vcpu': 2},
+        'cache.m4.xlarge': {
+            'memory': 14.28,
+            'redis_maxmemory': 11496376320,
+            'vcpu': 4},
+        'cache.m4.2xlarge': {
+            'memory': 29.70,
+            'redis_maxmemory': 31889126359,
+            'vcpu': 8},
+        'cache.m4.4xlarge': {
+            'memory': 60.78,
+            'redis_maxmemory': 65257290629,
+            'vcpu': 16},
+        'cache.m4.10xlarge': {
+            'memory': 154.64,
+            'redis_maxmemory': 166047614239,
+            'vcpu': 40},
         'cache.m5.large': {
              'memory': 6.38,
              'redis_maxmemory': 6854542746,
-             'vcpu': 2}}
+             'vcpu': 2},
+        'cache.m5.xlarge': {
+             'memory': 12.93,
+             'redis_maxmemory': 13891921715,
+             'vcpu': 4},
+        'cache.m5.2xlarge': {
+             'memory': 26.04,
+             'redis_maxmemory': 27966669210,
+             'vcpu': 8},
+        'cache.m5.4xlarge': {
+             'memory': 52.26,
+             'redis_maxmemory': 56116178125,
+             'vcpu': 16},
+        'cache.m5.12xlarge': {
+             'memory': 157.12,
+             'redis_maxmemory': 168715971994,
+             'vcpu': 48},
+        'cache.m5.24xlarge': {
+             'memory': 314.32,
+             'redis_maxmemory': 337500562842,
+             'vcpu': 96},
+        'cache.r4.large': {
+             'memory': 12.3,
+             'redis_maxmemory': 13201781556,
+             'vcpu': 2},
+        'cache.r4.xlarge': {
+             'memory': 25.05,
+             'redis_maxmemory': 26898228839,
+             'vcpu': 4},
+        'cache.r4.2xlarge': {
+             'memory': 50.47,
+             'redis_maxmemory': 54197537997,
+             'vcpu': 8},
+        'cache.r4.4xlarge': {
+             'memory': 101.38,
+             'redis_maxmemory': 108858546586,
+             'vcpu': 16},
+        'cache.r4.8xlarge': {
+             'memory': 203.26,
+             'redis_maxmemory': 218255432090,
+             'vcpu': 32},
+        'cache.r4.16xlarge': {
+             'memory': 407,
+             'redis_maxmemory': 437021573120,
+             'vcpu': 64},
+        'cache.r5.large': {
+             'memory': 13.07,
+             'redis_maxmemory': 14037181030,
+             'vcpu': 2},
+        'cache.r5.xlarge': {
+             'memory': 26.32,
+             'redis_maxmemory': 28261849702,
+             'vcpu': 4},
+        'cache.r5.2xlarge': {
+             'memory': 52.82,
+             'redis_maxmemory': 56711183565,
+             'vcpu': 8},
+        'cache.r5.4xlarge': {
+             'memory': 105.81,
+             'redis_maxmemory': 113609865216,
+             'vcpu': 16},
+        'cache.r5.12xlarge': {
+             'memory': 317.77,
+             'redis_maxmemory': 341206346547,
+             'vcpu': 48},
+        'cache.r5.24xlarge': {
+             'memory': 635.61,
+             'redis_maxmemory': 682485973811,
+             'vcpu': 96}}
 
     # ElastiCache metrics as listed on
     # http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/elasticache-metricscollected.html # noqa
