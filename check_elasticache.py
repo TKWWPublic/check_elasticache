@@ -13,8 +13,8 @@ Somehow inspired from the pmp-check-aws-rds.py script from the Percona
 Monitoring Toolkit
 """
 
-import boto.elasticache
-import boto.ec2.cloudwatch
+import boto3
+import botocore
 import argparse
 import sys
 import datetime
@@ -23,47 +23,55 @@ import json
 
 def get_cluster_info(region, identifier=None):
     """Function for fetching ElastiCache details"""
-    elasticache = boto.elasticache.connect_to_region(region)
+    elasticache = boto3.client('elasticache', region_name=region)
     try:
         if identifier:
             info = elasticache.describe_cache_clusters(
-                identifier,
-                show_cache_node_info=True)[
-                'DescribeCacheClustersResponse'][
-                'DescribeCacheClustersResult'][
+                CacheClusterId=identifier,
+                ShowCacheNodeInfo=True)[
                 'CacheClusters'][0]
         else:
+            info = elasticache.describe_cache_clusters()
             info = [v['CacheClusterId']
                     for v in elasticache.describe_cache_clusters()[
-                        'DescribeCacheClustersResponse'][
-                        'DescribeCacheClustersResult'][
                         'CacheClusters']]
-    except boto.exception.BotoServerError:
+    except botocore.exceptions.ClientError as e:
         info = None
+        print(e)
     return info
 
 
 def get_cluster_stats(region, node, step, start_time, end_time, metric,
                       identifier):
     """Function for fetching ElastiCache statistics from CloudWatch"""
-    cw = boto.ec2.cloudwatch.connect_to_region(region)
-    result = cw.get_metric_statistics(step,
-                                      start_time,
-                                      end_time,
-                                      metric,
-                                      'AWS/ElastiCache',
-                                      'Average',
-                                      dimensions={
-                                          'CacheClusterId': [identifier],
-                                          'CacheNodeId': ['%04d' % node],
-                                          }
+    cw = boto3.client('cloudwatch', region_name=region)
+    result = cw.get_metric_statistics(Period=step,
+                                      StartTime=start_time,
+                                      EndTime=end_time,
+                                      MetricName=metric,
+                                      Namespace='AWS/ElastiCache',
+                                      Statistics=['Average'],
+                                      Dimensions=[
+                                          {
+                                            "Name": "CacheClusterId",
+                                            "Value": identifier
+                                          },
+                                          {
+                                            "Name": "CacheNodeId",
+                                            "Value": '%04d' % node
+                                          },
+                                      ]
                                       )
     if result:
+        result = result['Datapoints']
+        if len(result) == 0:
+            return -999.0
         if len(result) > 1:
             # Get the last point
             result = sorted(result, key=lambda k: k['Timestamp'])
             result.reverse()
         result = float('%.2f' % result[0]['Average'])
+
     return result
 
 
@@ -168,14 +176,30 @@ def main():
         'cache.t1.micro': {
             'memory': 0.213,
             'redis_maxmemory': 142606336,
-            'vcpu': 1}}
+            'vcpu': 1},
+        'cache.t3.medium': {
+            'memory': 3.09,
+            'redis_maxmemory': 3317862236,
+            'vcpu': 2},
+        'cache.m5.large': {
+             'memory': 6.38,
+             'redis_maxmemory': 6854542746,
+             'vcpu': 2}}
 
     # ElastiCache metrics as listed on
     # http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/elasticache-metricscollected.html # noqa
-    metrics = {'status': 'ElastiCache availability',
-               'cpu': 'CPUUtilization',
-               'memory': 'BytesUsedForCache',
-               'swap': 'SwapUsage'}
+    metrics = {
+        'status': 'ElastiCache availability',
+        'cpu': 'CPUUtilization',
+        'memory':
+            {
+                'redis': ['BytesUsedForCache'],
+                'memcached': [
+                            'BytesUsedForCacheItems',
+                            'BytesUsedForHash'
+                ]
+            },
+        'swap': 'SwapUsage'}
 
     units = ('percent', 'GB')
 
@@ -225,8 +249,8 @@ def main():
         if info:
             print(json.dumps(info, indent=2))
         else:
-            print 'No ElastiCache cluster "%s" found on your AWS account.' % \
-                  options.ident
+            print('No ElastiCache cluster "%s" found on your AWS account.' % \
+                  options.ident)
         sys.exit()
     elif not options.metric or options.metric not in metrics.keys():
         parser.print_help()
@@ -295,10 +319,10 @@ def main():
                     n = i
                 cpu = get_cluster_stats(options.region, options.node, i * 60,
                                         tm - datetime.timedelta(
-                                            seconds=n * 60),
+                                        seconds=n * 60),
                                         tm, metrics[options.metric],
                                         options.ident)
-                if not cpu:
+                if not cpu and cpu < 0.0:
                     status = UNKNOWN
                     note = 'Unable to get ElastiCache statistics'
                     perf_data = None
@@ -341,10 +365,15 @@ def main():
             parser.error('Unit is not valid.')
 
         info = get_cluster_info(options.region, options.ident)
-        used_memory = get_cluster_stats(options.region, options.node, 60, tm -
-                                        datetime.timedelta(seconds=60), tm,
-                                        metrics[options.metric], options.ident)
-        if not info or not used_memory:
+        engine = info['Engine']
+        used_memory = 0.0
+        for metric in metrics[options.metric][engine]:
+            _used_memory = get_cluster_stats(options.region, options.node, 60, tm -
+                                            datetime.timedelta(seconds=60), tm,
+                                            metric, options.ident)
+            if used_memory and _used_memory >= 0.0:
+                used_memory += _used_memory
+        if not info or used_memory < 0.0:
             status = UNKNOWN
             note = 'Unable to get ElastiCache details and statistics'
         else:
@@ -352,8 +381,8 @@ def main():
                 max_memory = float(elasticache_classes[
                     info['CacheNodeType']]['redis_maxmemory'])
             except:
-                print 'Unknown ElastiCache instance class "%s"' % \
-                      info.instance_class
+                print('Unknown ElastiCache instance class "%s"' % \
+                      info['CacheNodeType'])
                 sys.exit(UNKNOWN)
 
             # free = '%.2f' % (free / 1024 ** 3)
@@ -399,7 +428,7 @@ def main():
         swap = get_cluster_stats(options.region, options.node, 60, tm -
                                  datetime.timedelta(seconds=60), tm,
                                  metrics[options.metric], options.ident)
-        if not info or not isinstance(swap, float):
+        if not info or not isinstance(swap, float) or swap < 0.0:
             status = UNKNOWN
             note = 'Unable to get ElastiCache details and statistics'
         else:
@@ -420,9 +449,9 @@ def main():
 
     # Final output
     if status != UNKNOWN and perf_data:
-        print '%s %s | %s' % (short_status[status], note, perf_data)
+        print('%s %s | %s' % (short_status[status], note, perf_data))
     else:
-        print '%s %s' % (short_status[status], note)
+        print('%s %s' % (short_status[status], note))
     sys.exit(status)
 
 
